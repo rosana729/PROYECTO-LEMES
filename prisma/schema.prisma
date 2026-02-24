@@ -1,0 +1,203 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// USUARIOS
+model Usuario {
+  id                BigInt       @id @default(autoincrement())
+  email             String       @unique @db.VarChar(255)
+  password_hash     String       @db.Text
+  nombre            String       @db.VarChar(255)
+  apellido          String       @db.VarChar(255)
+  rol               String       @db.VarChar(50) // ROLE_ADMIN, ROLE_DOCTOR, ROLE_SECRETARIA
+  estado            String       @default("activo") @db.VarChar(50) // activo, inactivo
+  createdAt         DateTime     @default(now()) @db.Timestamp(6)
+  updatedAt         DateTime     @updatedAt @db.Timestamp(6)
+  
+  // Relaciones
+  sesiones          Sesion[]
+  pacientes         Paciente[]
+  turnosAsDoctor    Turno[] @relation("DoctorTurno")
+  citasAsDoctor     Cita[] @relation("DoctorCita")
+
+  @@map("usuarios")
+  @@index([email])
+  @@index([rol])
+}
+
+// PACIENTES
+model Paciente {
+  id                BigInt       @id @default(autoincrement())
+  usuario_id        BigInt
+  dni               String       @unique @db.VarChar(50)
+  nombre            String       @db.VarChar(255)
+  apellido          String       @db.VarChar(255)
+  fecha_nacimiento  DateTime?    @db.Timestamp(6)
+  sexo              String?      @db.VarChar(50)
+  peso              Float?
+  talla             Float?
+  grupo_sanguineo   String?      @db.VarChar(50)
+  telefono          String?      @db.VarChar(20)
+  direccion         String?      @db.Text
+  ciudad            String?      @db.VarChar(100)
+  estado            String       @default("activo") @db.VarChar(50)
+  email             String?      @db.VarChar(255)
+  createdAt         DateTime     @default(now()) @db.Timestamp(6)
+  updatedAt         DateTime     @updatedAt @db.Timestamp(6)
+  
+  // Relaciones
+  usuario           Usuario      @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+  historias_clinicas HistoriaClinica[]
+  turnos            Turno[]
+  citas             Cita[]
+  documentos        Documento[]
+
+  @@map("pacientes")
+  @@index([usuario_id])
+  @@index([dni])
+}
+
+// TURNOS
+model Turno {
+  id             BigInt       @id @default(autoincrement())
+  paciente_id    BigInt
+  medico_id      BigInt?
+  fecha_hora     DateTime     @db.Timestamp(6)
+  estado         String       @db.VarChar(50) // pendiente, confirmado, en_consulta, atendido, ausente, cancelado
+  motivo         String?      @db.Text
+  notas          String?      @db.Text
+  createdAt      DateTime     @default(now()) @db.Timestamp(6)
+  updatedAt      DateTime     @updatedAt @db.Timestamp(6)
+  
+  // Relaciones
+  paciente       Paciente     @relation(fields: [paciente_id], references: [id], onDelete: Cascade)
+  medico         Usuario?     @relation("DoctorTurno", fields: [medico_id], references: [id], onDelete: SetNull)
+
+  @@map("turnos")
+  @@index([paciente_id])
+  @@index([medico_id])
+  @@index([fecha_hora])
+  @@index([estado])
+}
+
+// CITAS
+model Cita {
+  id              BigInt       @id @default(autoincrement())
+  paciente_id     BigInt
+  medico_id       BigInt?
+  fecha_hora      DateTime     @db.Timestamp(6)
+  tipo_consulta   String?      @db.VarChar(255)
+  descripcion     String?      @db.Text
+  estado          String       @default("pendiente") @db.VarChar(50)
+  ubicacion       String?      @db.VarChar(255)
+  createdAt       DateTime     @default(now()) @db.Timestamp(6)
+  updatedAt       DateTime     @updatedAt @db.Timestamp(6)
+  
+  // Relaciones
+  paciente        Paciente     @relation(fields: [paciente_id], references: [id], onDelete: Cascade)
+  medico          Usuario?     @relation("DoctorCita", fields: [medico_id], references: [id], onDelete: SetNull)
+
+  @@map("citas")
+  @@index([paciente_id])
+  @@index([medico_id])
+  @@index([fecha_hora])
+  @@index([estado])
+}
+
+// HISTORIAS CLINICAS
+model HistoriaClinica {
+  id                   BigInt       @id @default(autoincrement())
+  paciente_id          BigInt
+  fecha                DateTime     @default(now()) @db.Timestamp(6)
+  diagnostico          String?      @db.Text
+  peso                 Float?
+  talla                Float?
+  imc                  Float?
+  presion_arterial     String?      @db.VarChar(50)
+  frecuencia_cardiaca  Int?
+  temperatura          Float?
+  saturacion_oxigeno   Float?
+  medicamentos         String?      @db.Text
+  observaciones        String?      @db.Text
+  createdAt            DateTime     @default(now()) @db.Timestamp(6)
+  updatedAt            DateTime     @updatedAt @db.Timestamp(6)
+  
+  // Relaciones
+  paciente             Paciente     @relation(fields: [paciente_id], references: [id], onDelete: Cascade)
+  estudios_adjuntos    EstudioAdjunto[]
+
+  @@map("historias_clinicas")
+  @@index([paciente_id])
+  @@index([fecha])
+}
+
+// ESTUDIOS ADJUNTOS
+model EstudioAdjunto {
+  id                  BigInt       @id @default(autoincrement())
+  historia_clinica_id BigInt
+  tipo_estudio        String       @db.VarChar(100) // Laboratorio, ECG, Radiografía, etc.
+  nombre_archivo      String       @db.VarChar(255)
+  url                 String       @db.Text
+  url_supabase        String?      @db.Text
+  tamanio             BigInt?
+  mime_type           String?      @db.VarChar(100)
+  createdAt           DateTime     @default(now()) @db.Timestamp(6)
+  updatedAt           DateTime     @updatedAt @db.Timestamp(6)
+  
+  // Relaciones
+  historia_clinica    HistoriaClinica @relation(fields: [historia_clinica_id], references: [id], onDelete: Cascade)
+
+  @@map("estudios_adjuntos")
+  @@index([historia_clinica_id])
+}
+
+// DOCUMENTOS
+model Documento {
+  id              BigInt       @id @default(autoincrement())
+  paciente_id     BigInt
+  tipo_documento  String       @db.VarChar(100) // DNI, Receta, Informe, etc.
+  nombre_archivo  String       @db.VarChar(255)
+  url             String       @db.Text
+  url_supabase    String?      @db.Text
+  tamanio         BigInt?
+  mime_type       String?      @db.VarChar(100)
+  descripcion     String?      @db.Text
+  createdAt       DateTime     @default(now()) @db.Timestamp(6)
+  updatedAt       DateTime     @updatedAt @db.Timestamp(6)
+  
+  // Relaciones
+  paciente        Paciente     @relation(fields: [paciente_id], references: [id], onDelete: Cascade)
+
+  @@map("documentos")
+  @@index([paciente_id])
+  @@index([tipo_documento])
+}
+
+// SESIONES
+model Sesion {
+  id               BigInt       @id @default(autoincrement())
+  usuario_id       BigInt
+  token_sesion     String       @unique @db.Text
+  navegador_info   String?      @db.VarChar(255)
+  ip_address       String?      @db.VarChar(50)
+  createdAt        DateTime     @default(now()) @db.Timestamp(6)
+  fecha_expiracion DateTime     @db.Timestamp(6)
+  fecha_cierre      DateTime?    @db.Timestamp(6)
+  activa           Boolean      @default(true)
+  
+  // Relaciones
+  usuario          Usuario      @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+
+  @@map("sesiones")
+  @@index([usuario_id])
+  @@index([token_sesion])
+  @@index([fecha_expiracion])
+}

@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="wrapper">
+        <%- include('../partials/sidebar') %>
+        
+        <div class="main-content" style="margin-left: 260px; margin-top: 70px;">
+            <%- include('../partials/navbar') %>
+            
+            <main class="content" style="padding: 30px;">
+                <div class="container-fluid">
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h1 class="h2">Bienvenido, Dr. <%= usuario.nombre %>!</h1>
+                            <p class="text-muted">Gestiona tus consultas y pacientes del día</p>
+                        </div>
+                    </div>
+
+                    <!-- Cards de Estadísticas -->
+                    <div class="row mb-4">
+                        <div class="col-md-4 mb-3">
+                            <div class="stat-card">
+                                <div class="stat-icon" style="background: #e7f3ff;">
+                                    <i class="fas fa-user-check text-primary"></i>
+                                </div>
+                                <div class="stat-content">
+                                    <h6>Pacientes Atendidos</h6>
+                                    <h2 id="atendidos">0</h2>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <div class="stat-card">
+                                <div class="stat-icon" style="background: #fff3e0;">
+                                    <i class="fas fa-hourglass-half text-warning"></i>
+                                </div>
+                                <div class="stat-content">
+                                    <h6>En Espera</h6>
+                                    <h2 id="pendientes">0</h2>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <div class="stat-card">
+                                <div class="stat-icon" style="background: #e8f5e9;">
+                                    <i class="fas fa-stethoscope text-success"></i>
+                                </div>
+                                <div class="stat-content">
+                                    <h6>En Consulta</h6>
+                                    <h2 id="enConsulta">0</h2>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Siguiente Paciente -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="card next-patient-card">
+                                <div class="card-header">
+                                    <h5 class="mb-0">
+                                        <i class="fas fa-arrow-right"></i> Siguiente Paciente
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div id="nextPatientInfo" class="next-patient-info">
+                                        <div class="text-center py-5">
+                                            <div class="spinner-border text-primary" role="status">
+                                                <span class="visually-hidden">Cargando...</span>
+                                            </div>
+                                            <p class="mt-3 text-muted">Cargando siguiente paciente...</p>
+                                        </div>
+                                    </div>
+
+                                    <div id="patientActions" class="patient-actions" style="display: none;">
+                                        <button class="btn btn-primary btn-lg" id="iniciarConsultaBtn">
+                                            <i class="fas fa-play-circle"></i> Iniciar Consulta
+                                        </button>
+                                        <button class="btn btn-secondary btn-lg" id="siguientePacienteBtn">
+                                            <i class="fas fa-forward"></i> Siguiente
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Acciones rápidas -->
+                    <div class="row">
+                        <div class="col-lg-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="mb-0">Acciones Rápidas</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="quick-links">
+                                        <a href="/mi-agenda" class="quick-link">
+                                            <i class="fas fa-calendar-alt"></i>
+                                            <span>Mi Agenda</span>
+                                        </a>
+                                        <a href="/mis-pacientes" class="quick-link">
+                                            <i class="fas fa-users"></i>
+                                            <span>Mis Pacientes</span>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-lg-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="mb-0">Turnos de Hoy</h5>
+                                </div>
+                                <div class="card-body">
+                                    <ul id="todayTurnosList" class="turno-list">
+                                        <li class="text-muted text-center py-3">Cargando turnos...</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modal para historia clínica -->
+    <div class="modal fade" id="historiaModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Crear Historia Clínica</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="historiaForm">
+                        <!-- Campos de historia clínica -->
+                        <div class="mb-3">
+                            <label class="form-label">Diagnóstico</label>
+                            <textarea class="form-control" name="diagnostico" rows="3"></textarea>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Peso (kg)</label>
+                                <input type="number" class="form-control" name="peso" step="0.1">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Talla (cm)</label>
+                                <input type="number" class="form-control" name="talla" step="0.1">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Presión Arterial</label>
+                                <input type="text" class="form-control" name="presion_arterial" placeholder="120/80">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">FC (lpm)</label>
+                                <input type="number" class="form-control" name="frecuencia_cardiaca">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="guardarHistoriaBtn">Guardar Historia</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/main.js"></script>
+    <script>
+        let currentPatientId = null;
+        let currentTurnoId = null;
+
+        // Cargar siguiente paciente
+        async function loadNextPatient() {
+            try {
+                const response = await fetch('/api/turnos/proximo');
+                const data = await response.json();
+
+                if (data.success) {
+                    currentPatientId = data.turno.paciente_id;
+                    currentTurnoId = data.turno.id;
+                    displayNextPatient(data.turno);
+                } else {
+                    showNoPatients();
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showNoPatients();
+            }
+        }
+
+        function displayNextPatient(turno) {
+            const paciente = turno.paciente;
+            const html = `
+                <div class="patient-card">
+                    <div class="patient-header">
+                        <h4>${paciente.nombre} ${paciente.apellido}</h4>
+                        <span class="badge bg-info">${paciente.dni}</span>
+                    </div>
+                    <div class="patient-details">
+                        <p><strong>Turno:</strong> ${new Date(turno.fecha_hora).toLocaleTimeString('es-AR', {hour: '2-digit', minute: '2-digit'})}</p>
+                        <p><strong>Motivo:</strong> ${turno.motivo || 'No especificado'}</p>
+                    </div>
+                </div>
+            `;
+            document.getElementById('nextPatientInfo').innerHTML = html;
+            document.getElementById('patientActions').style.display = 'flex';
+        }
+
+        function showNoPatients() {
+            document.getElementById('nextPatientInfo').innerHTML = `
+                <div class="text-center py-5">
+                    <i class="fas fa-check-circle text-success" style="font-size: 3rem;"></i>
+                    <h5 class="mt-3">¡No hay pacientes pendientes!</h5>
+                    <p class="text-muted">Todos los turnos han sido atendidos</p>
+                </div>
+            `;
+            document.getElementById('patientActions').style.display = 'none';
+        }
+
+        // Iniciar consulta
+        document.getElementById('iniciarConsultaBtn').addEventListener('click', async function() {
+            try {
+                const response = await fetch(`/api/turnos/${currentTurnoId}/iniciar`, {
+                    method: 'PATCH'
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    // Mostrar form de historia clínica
+                    const modal = new bootstrap.Modal(document.getElementById('historiaModal'));
+                    modal.show();
+                } else {
+                    alert('Error al iniciar consulta');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        });
+
+        // Guardar historia y finalizar consulta
+        document.getElementById('guardarHistoriaBtn').addEventListener('click', async function() {
+            const formData = new FormData(document.getElementById('historiaForm'));
+            
+            try {
+                // Crear historia clínica
+                const response = await fetch('/api/historias', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        paciente_id: currentPatientId,
+                        diagnostico: formData.get('diagnostico'),
+                        peso: formData.get('peso'),
+                        talla: formData.get('talla'),
+                        presion_arterial: formData.get('presion_arterial'),
+                        frecuencia_cardiaca: formData.get('frecuencia_cardiaca'),
+                    })
+                });
+
+                if (response.ok) {
+                    // Finalizar turno
+                    await fetch(`/api/turnos/${currentTurnoId}/finalizar`, {
+                        method: 'PATCH'
+                    });
+
+                    bootstrap.Modal.getInstance(document.getElementById('historiaModal')).hide();
+                    document.getElementById('historiaForm').reset();
+                    
+                    // Cargar siguiente paciente
+                    loadNextPatient();
+                    loadStats();
+                } else {
+                    alert('Error al guardar historia');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error al guardar historia');
+            }
+        });
+
+        // Siguiente paciente sin guardar
+        document.getElementById('siguientePacienteBtn').addEventListener('click', loadNextPatient);
+
+        // Cargar estadísticas
+        async function loadStats() {
+            try {
+                const response = await fetch(`/api/turnos/estadisticas?fecha=${new Date().toISOString().split('T')[0]}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    document.getElementById('atendidos').textContent = data.estadisticas.atendidos;
+                    document.getElementById('pendientes').textContent = data.estadisticas.pendientes;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        // Cargar turnos del día
+        async function loadTodayTurnos() {
+            try {
+                const today = new Date().toISOString().split('T')[0];
+                const response = await fetch(`/api/turnos/fecha?fecha=${today}`);
+                const data = await response.json();
+
+                if (data.success && data.turnos.length > 0) {
+                    const html = data.turnos.map(turno => `
+                        <li class="turno-item" onclick="window.location.href='/pacientes/${turno.paciente_id}'">
+                            <div>
+                                <strong>${turno.paciente.nombre} ${turno.paciente.apellido}</strong>
+                                <small class="d-block text-muted">${new Date(turno.fecha_hora).toLocaleTimeString('es-AR', {hour: '2-digit', minute: '2-digit'})}</small>
+                            </div>
+                            <span class="badge bg-${turno.estado === 'atendido' ? 'success' : turno.estado === 'en_consulta' ? 'primary' : 'warning'}">${turno.estado}</span>
+                        </li>
+                    `).join('');
+                    document.getElementById('todayTurnosList').innerHTML = html;
+                } else {
+                    document.getElementById('todayTurnosList').innerHTML = '<li class="text-muted text-center py-3">Sin turnos para hoy</li>';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        // Cargar al inicio
+        loadNextPatient();
+        loadStats();
+        loadTodayTurnos();
+
+        // Actualizar cada 30 segundos
+        setInterval(() => {
+            loadStats();
+            loadTodayTurnos();
+        }, 30000);
+    </script>
+
+    <style>
+        .next-patient-card {
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0 5px 25px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .patient-card {
+            padding: 30px;
+            background: linear-gradient(135deg, #fff9e6 0%, #fff0f6 100%);
+            border-radius: 10px;
+        }
+
+        .patient-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .patient-header h4 {
+            margin: 0;
+            color: #333;
+            font-weight: 700;
+        }
+
+        .patient-details {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .patient-details p {
+            margin: 10px 0;
+            color: #666;
+        }
+
+        .patient-actions {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+            justify-content: center;
+        }
+
+        .patient-actions .btn {
+            min-width: 200px;
+        }
+
+        .turno-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .turno-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .turno-item:hover {
+            background: #f8f9fa;
+        }
+
+        .quick-links {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+
+        .quick-link {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            gap: 10px;
+        }
+
+        .quick-link:hover {
+            transform: translateY(-3px);
+            color: white;
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .quick-link i {
+            font-size: 1.8rem;
+        }
+    </style>
+</body>
+</html>
