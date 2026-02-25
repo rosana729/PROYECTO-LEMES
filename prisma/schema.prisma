@@ -18,8 +18,8 @@ model Usuario {
   password_hash     String       @db.Text
   nombre            String       @db.VarChar(255)
   apellido          String       @db.VarChar(255)
-  rol               String       @db.VarChar(50) // ROLE_ADMIN, ROLE_DOCTOR, ROLE_SECRETARIA
-  estado            String       @default("activo") @db.VarChar(50) // activo, inactivo
+  rol               String       @db.VarChar(50)
+  estado            String       @default("activo") @db.VarChar(50)
   createdAt         DateTime     @default(now()) @db.Timestamp(6)
   updatedAt         DateTime     @updatedAt @db.Timestamp(6)
   
@@ -72,7 +72,7 @@ model Turno {
   paciente_id    BigInt
   medico_id      BigInt?
   fecha_hora     DateTime     @db.Timestamp(6)
-  estado         String       @db.VarChar(50) // pendiente, confirmado, en_consulta, atendido, ausente, cancelado
+  estado         String       @db.VarChar(50)
   motivo         String?      @db.Text
   notas          String?      @db.Text
   createdAt      DateTime     @default(now()) @db.Timestamp(6)
@@ -144,7 +144,7 @@ model HistoriaClinica {
 model EstudioAdjunto {
   id                  BigInt       @id @default(autoincrement())
   historia_clinica_id BigInt
-  tipo_estudio        String       @db.VarChar(100) // Laboratorio, ECG, Radiografía, etc.
+  tipo_estudio        String       @db.VarChar(100)
   nombre_archivo      String       @db.VarChar(255)
   url                 String       @db.Text
   url_supabase        String?      @db.Text
@@ -164,7 +164,7 @@ model EstudioAdjunto {
 model Documento {
   id              BigInt       @id @default(autoincrement())
   paciente_id     BigInt
-  tipo_documento  String       @db.VarChar(100) // DNI, Receta, Informe, etc.
+  tipo_documento  String       @db.VarChar(100)
   nombre_archivo  String       @db.VarChar(255)
   url             String       @db.Text
   url_supabase    String?      @db.Text
