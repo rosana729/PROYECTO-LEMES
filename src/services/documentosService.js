@@ -2,7 +2,13 @@ import { PrismaClient } from '@prisma/client';
 import { initSupabase } from '../config/supabase.js';
 import { NotFoundError, ValidationError } from '../utils/errors.js';
 
-const prisma = new PrismaClient();
+let prisma = null;
+const getPrisma = () => {
+  if (!prisma) {
+    prisma = new PrismaClient();
+  }
+  return prisma;
+};
 
 export const uploadDocumento = async (pacienteId, file, tipo_documento = 'documento') => {
   if (!pacienteId) {
@@ -14,7 +20,7 @@ export const uploadDocumento = async (pacienteId, file, tipo_documento = 'docume
   }
 
   // Verificar que el paciente existe
-  const paciente = await prisma.paciente.findUnique({
+  const paciente = await getPrisma().paciente.findUnique({
     where: { id: pacienteId },
   });
 
@@ -48,7 +54,7 @@ export const uploadDocumento = async (pacienteId, file, tipo_documento = 'docume
       .getPublicUrl(fileName);
 
     // Guardar en base de datos
-    const documento = await prisma.documento.create({
+    const documento = await getPrisma().documento.create({
       data: {
         paciente_id: pacienteId,
         tipo_documento,
@@ -77,7 +83,7 @@ export const uploadEstudioAdjunto = async (historiaClinicaId, file, tipoEstudio 
   }
 
   // Verificar que la historia existe
-  const historia = await prisma.historiaClinica.findUnique({
+  const historia = await getPrisma().historiaClinica.findUnique({
     where: { id: historiaClinicaId },
   });
 
@@ -111,7 +117,7 @@ export const uploadEstudioAdjunto = async (historiaClinicaId, file, tipoEstudio 
       .getPublicUrl(fileName);
 
     // Guardar en base de datos
-    const estudio = await prisma.estudioAdjunto.create({
+    const estudio = await getPrisma().estudioAdjunto.create({
       data: {
         historia_clinica_id: historiaClinicaId,
         tipo_estudio: tipoEstudio,
@@ -131,7 +137,7 @@ export const uploadEstudioAdjunto = async (historiaClinicaId, file, tipoEstudio 
 };
 
 export const getDocumentoById = async (id) => {
-  const documento = await prisma.documento.findUnique({
+  const documento = await getPrisma().documento.findUnique({
     where: { id },
     include: {
       paciente: {
@@ -148,7 +154,7 @@ export const getDocumentoById = async (id) => {
 };
 
 export const getDocumentosByPaciente = async (pacienteId, limit = 50) => {
-  const documentos = await prisma.documento.findMany({
+  const documentos = await getPrisma().documento.findMany({
     where: { paciente_id: pacienteId },
     orderBy: { fecha_carga: 'desc' },
     take: limit,
@@ -158,7 +164,7 @@ export const getDocumentosByPaciente = async (pacienteId, limit = 50) => {
 };
 
 export const deleteDocumento = async (id) => {
-  const documento = await prisma.documento.findUnique({
+  const documento = await getPrisma().documento.findUnique({
     where: { id },
   });
 
@@ -181,7 +187,7 @@ export const deleteDocumento = async (id) => {
     }
 
     // Eliminar registro de BD
-    await prisma.documento.delete({
+    await getPrisma().documento.delete({
       where: { id },
     });
 

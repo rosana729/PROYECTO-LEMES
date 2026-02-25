@@ -8,6 +8,14 @@ import path from 'path';
 import fs from 'fs';
 import jwt from 'jsonwebtoken';
 
+// Importar rutas (seguro ahora que Prisma usa lazy-loading)
+import authRoutes from './routes/authRoutes.js';
+import pacientesRoutes from './routes/pacientesRoutes.js';
+import turnosRoutes from './routes/turnosRoutes.js';
+import historiasRoutes from './routes/historiasRoutes.js';
+import usuariosRoutes from './routes/usuariosRoutes.js';
+import documentosRoutes from './routes/documentosRoutes.js';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -191,70 +199,17 @@ app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// RUTA DE PRUEBA - para verificar que /api/ funciona
-app.post('/api/test-login', (req, res) => {
-  console.log('✓ POST /api/test-login llamado');
-  res.status(200).json({ 
-    success: true, 
-    message: 'Ruta de prueba funcionando',
-    timestamp: new Date().toISOString()
-  });
-});
-
 // ========================================
-// CARGAR RUTAS API - Variable para control
+// REGISTRAR RUTAS API (ESTÁTICAS - Vercel Compatible)
 // ========================================
-let routesLoaded = false;
-let routesLoading = false;
+app.use('/api/auth', authRoutes);
+app.use('/api/pacientes', pacientesRoutes);
+app.use('/api/turnos', turnosRoutes);
+app.use('/api/historias', historiasRoutes);
+app.use('/api/usuarios', usuariosRoutes);
+app.use('/api/documentos', documentosRoutes);
 
-// Middleware para cargar rutas al primer request (compatible con Vercel serverless)
-app.use(async (req, res, next) => {
-  if (routesLoaded) {
-    return next();
-  }
-  
-  if (routesLoading) {
-    // Si se están cargando, esperar
-    return res.status(503).json({ error: 'Rutas cargándose, intente de nuevo' });
-  }
-  
-  routesLoading = true;
-  
-  try {
-    console.log('🚀 Cargando rutas API en primer request...');
-    
-    const [authMod, pacientesMod, turnosMod, historiasMod, usuariosMod, documentosMod] = await Promise.all([
-      import('./routes/authRoutes.js'),
-      import('./routes/pacientesRoutes.js'),
-      import('./routes/turnosRoutes.js'),
-      import('./routes/historiasRoutes.js'),
-      import('./routes/usuariosRoutes.js'),
-      import('./routes/documentosRoutes.js'),
-    ]);
-
-    // Registrar todas las rutas API
-    app.use('/api/auth', authMod.default);
-    app.use('/api/pacientes', pacientesMod.default);
-    app.use('/api/turnos', turnosMod.default);
-    app.use('/api/historias', historiasMod.default);
-    app.use('/api/usuarios', usuariosMod.default);
-    app.use('/api/documentos', documentosMod.default);
-
-    console.log('✓ Todas las rutas API cargadas correctamente');
-    
-    routesLoaded = true;
-    routesLoading = false;
-    
-    // Reintentar el request actual
-    next();
-
-  } catch (err) {
-    console.error('❌ Error cargando rutas API:', err.message);
-    console.error(err.stack);
-    routesLoading = false;
-    res.status(500).json({ error: 'Error al cargar rutas', message: err.message });
-  }
-});
+console.log('✓ Rutas API registradas correctamente');
 
 // ========================================
 // MANEJO DE ERRORES 404 (DEBE IR AL FINAL)

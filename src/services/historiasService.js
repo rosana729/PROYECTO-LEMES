@@ -2,7 +2,13 @@ import { PrismaClient } from '@prisma/client';
 import { calculateIMC } from '../utils/validators.js';
 import { NotFoundError, ValidationError } from '../utils/errors.js';
 
-const prisma = new PrismaClient();
+let prisma = null;
+const getPrisma = () => {
+  if (!prisma) {
+    prisma = new PrismaClient();
+  }
+  return prisma;
+};
 
 export const createHistoriaClinica = async (data) => {
   // Validaciones
@@ -11,7 +17,7 @@ export const createHistoriaClinica = async (data) => {
   }
 
   // Verificar que el paciente existe
-  const paciente = await prisma.paciente.findUnique({
+  const paciente = await getPrisma().paciente.findUnique({
     where: { id: data.paciente_id },
   });
 
@@ -25,7 +31,7 @@ export const createHistoriaClinica = async (data) => {
     imc = calculateIMC(data.peso, data.talla);
   }
 
-  const historia = await prisma.historiaClinica.create({
+  const historia = await getPrisma().historiaClinica.create({
     data: {
       paciente_id: data.paciente_id,
       fecha: data.fecha ? new Date(data.fecha) : new Date(),
@@ -51,7 +57,7 @@ export const createHistoriaClinica = async (data) => {
 };
 
 export const getHistoriaClinicaById = async (id) => {
-  const historia = await prisma.historiaClinica.findUnique({
+  const historia = await getPrisma().historiaClinica.findUnique({
     where: { id },
     include: {
       paciente: {
@@ -71,7 +77,7 @@ export const getHistoriaClinicaById = async (id) => {
 };
 
 export const getHistoriasClinicasByPaciente = async (paciente_id, limit = 20) => {
-  const historias = await prisma.historiaClinica.findMany({
+  const historias = await getPrisma().historiaClinica.findMany({
     where: { paciente_id },
     orderBy: { fecha: 'desc' },
     take: limit,
@@ -94,7 +100,7 @@ export const updateHistoriaClinica = async (id, data) => {
   }
 
   if (data.peso !== undefined || data.talla !== undefined) {
-    const historia = await prisma.historiaClinica.findUnique({ where: { id } });
+    const historia = await getPrisma().historiaClinica.findUnique({ where: { id } });
 
     const peso = data.peso !== undefined ? parseFloat(data.peso) : historia.peso;
     const talla = data.talla !== undefined ? parseFloat(data.talla) : historia.talla;
@@ -131,7 +137,7 @@ export const updateHistoriaClinica = async (id, data) => {
     updateData.observaciones = data.observaciones;
   }
 
-  const historia = await prisma.historiaClinica.update({
+  const historia = await getPrisma().historiaClinica.update({
     where: { id },
     data: updateData,
     include: {
@@ -145,7 +151,7 @@ export const updateHistoriaClinica = async (id, data) => {
 };
 
 export const getUltimaHistoriaClinica = async (paciente_id) => {
-  const historia = await prisma.historiaClinica.findFirst({
+  const historia = await getPrisma().historiaClinica.findFirst({
     where: { paciente_id },
     orderBy: { fecha: 'desc' },
     include: {

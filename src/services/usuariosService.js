@@ -3,7 +3,13 @@ import { hashPassword } from '../utils/auth.js';
 import { validateEmail, sanitizeEmail, isValidRole } from '../utils/validators.js';
 import { ValidationError, NotFoundError, ConflictError } from '../utils/errors.js';
 
-const prisma = new PrismaClient();
+let prisma = null;
+const getPrisma = () => {
+  if (!prisma) {
+    prisma = new PrismaClient();
+  }
+  return prisma;
+};
 
 export const createUsuario = async (data) => {
   // Validaciones
@@ -34,7 +40,7 @@ export const createUsuario = async (data) => {
   }
 
   // Verificar si el email ya existe
-  const usuarioExistente = await prisma.usuario.findUnique({
+  const usuarioExistente = await getPrisma().usuario.findUnique({
     where: { email: cleanEmail },
   });
 
@@ -45,7 +51,7 @@ export const createUsuario = async (data) => {
   // Hash de contraseña
   const passwordHash = await hashPassword(data.password);
 
-  const usuario = await prisma.usuario.create({
+  const usuario = await getPrisma().usuario.create({
     data: {
       email: cleanEmail,
       password_hash: passwordHash,
@@ -69,7 +75,7 @@ export const createUsuario = async (data) => {
 };
 
 export const getUsuarioById = async (id) => {
-  const usuario = await prisma.usuario.findUnique({
+  const usuario = await getPrisma().usuario.findUnique({
     where: { id },
     select: {
       id: true,
@@ -91,7 +97,7 @@ export const getUsuarioById = async (id) => {
 };
 
 export const getAllUsuarios = async (limit = 50, offset = 0) => {
-  const usuarios = await prisma.usuario.findMany({
+  const usuarios = await getPrisma().usuario.findMany({
     skip: offset,
     take: limit,
     orderBy: { fecha_creacion: 'desc' },
@@ -106,7 +112,7 @@ export const getAllUsuarios = async (limit = 50, offset = 0) => {
     },
   });
 
-  const total = await prisma.usuario.count();
+  const total = await getPrisma().usuario.count();
 
   return {
     data: usuarios,
@@ -121,7 +127,7 @@ export const getUsuariosByRol = async (rol, limit = 50) => {
     throw new ValidationError('Rol inválido', 'rol');
   }
 
-  const usuarios = await prisma.usuario.findMany({
+  const usuarios = await getPrisma().usuario.findMany({
     where: { rol },
     take: limit,
     orderBy: { fecha_creacion: 'desc' },
@@ -164,7 +170,7 @@ export const updateUsuario = async (id, data) => {
       throw new ValidationError('Email inválido', 'email');
     }
 
-    const usuarioExistente = await prisma.usuario.findUnique({
+    const usuarioExistente = await getPrisma().usuario.findUnique({
       where: { email: cleanEmail },
     });
 
@@ -175,7 +181,7 @@ export const updateUsuario = async (id, data) => {
     updateData.email = cleanEmail;
   }
 
-  const usuario = await prisma.usuario.update({
+  const usuario = await getPrisma().usuario.update({
     where: { id },
     data: updateData,
     select: {
@@ -192,7 +198,7 @@ export const updateUsuario = async (id, data) => {
 };
 
 export const deleteUsuario = async (id) => {
-  const usuario = await prisma.usuario.delete({
+  const usuario = await getPrisma().usuario.delete({
     where: { id },
     select: {
       id: true,
@@ -208,7 +214,7 @@ export const changePassword = async (id, oldPassword, newPassword) => {
     throw new ValidationError('Contraseñas requeridas');
   }
 
-  const usuario = await prisma.usuario.findUnique({
+  const usuario = await getPrisma().usuario.findUnique({
     where: { id },
   });
 
@@ -226,7 +232,7 @@ export const changePassword = async (id, oldPassword, newPassword) => {
 
   const newPasswordHash = await hashPassword(newPassword);
 
-  await prisma.usuario.update({
+  await getPrisma().usuario.update({
     where: { id },
     data: { password_hash: newPasswordHash },
   });

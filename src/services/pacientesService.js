@@ -2,7 +2,13 @@ import { PrismaClient } from '@prisma/client';
 import { validateDNI } from '../utils/validators.js';
 import { NotFoundError, ValidationError } from '../utils/errors.js';
 
-const prisma = new PrismaClient();
+let prisma = null;
+const getPrisma = () => {
+  if (!prisma) {
+    prisma = new PrismaClient();
+  }
+  return prisma;
+};
 
 export const createPaciente = async (data) => {
   // Validaciones básicas
@@ -15,7 +21,7 @@ export const createPaciente = async (data) => {
   }
 
   // Verificar si el DNI ya existe
-  const dniExists = await prisma.paciente.findUnique({
+  const dniExists = await getPrisma().paciente.findUnique({
     where: { dni: data.dni },
   });
 
@@ -23,7 +29,7 @@ export const createPaciente = async (data) => {
     throw new ValidationError('El DNI ya está registrado', 'dni');
   }
 
-  const paciente = await prisma.paciente.create({
+  const paciente = await getPrisma().paciente.create({
     data: {
       usuario_id: data.usuario_id,
       dni: data.dni.replace(/\D/g, ''),
@@ -44,7 +50,7 @@ export const createPaciente = async (data) => {
 };
 
 export const getPacienteByDNI = async (dni) => {
-  const paciente = await prisma.paciente.findUnique({
+  const paciente = await getPrisma().paciente.findUnique({
     where: { dni: dni.replace(/\D/g, '') },
     include: {
       historias_clinicas: {
@@ -66,7 +72,7 @@ export const getPacienteByDNI = async (dni) => {
 };
 
 export const getPacienteById = async (id) => {
-  const paciente = await prisma.paciente.findUnique({
+  const paciente = await getPrisma().paciente.findUnique({
     where: { id },
     include: {
       usuario: {
@@ -95,7 +101,7 @@ export const getPacienteById = async (id) => {
 };
 
 export const getAllPacientes = async (limit = 50, offset = 0) => {
-  const pacientes = await prisma.paciente.findMany({
+  const pacientes = await getPrisma().paciente.findMany({
     skip: offset,
     take: limit,
     orderBy: { fecha_creacion: 'desc' },
@@ -106,7 +112,7 @@ export const getAllPacientes = async (limit = 50, offset = 0) => {
     },
   });
 
-  const total = await prisma.paciente.count();
+  const total = await getPrisma().paciente.count();
 
   return {
     data: pacientes,
@@ -117,7 +123,7 @@ export const getAllPacientes = async (limit = 50, offset = 0) => {
 };
 
 export const updatePaciente = async (id, data) => {
-  const paciente = await prisma.paciente.update({
+  const paciente = await getPrisma().paciente.update({
     where: { id },
     data: {
       nombre: data.nombre,
@@ -138,7 +144,7 @@ export const updatePaciente = async (id, data) => {
 };
 
 export const searchPacientes = async (query, limit = 20) => {
-  const pacientes = await prisma.paciente.findMany({
+  const pacientes = await getPrisma().paciente.findMany({
     where: {
       OR: [
         { dni: { contains: query } },

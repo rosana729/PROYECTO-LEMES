@@ -2,7 +2,13 @@ import { PrismaClient } from '@prisma/client';
 import { isValidTurnoStatus } from '../utils/validators.js';
 import { NotFoundError, ValidationError } from '../utils/errors.js';
 
-const prisma = new PrismaClient();
+let prisma = null;
+const getPrisma = () => {
+  if (!prisma) {
+    prisma = new PrismaClient();
+  }
+  return prisma;
+};
 
 export const createTurno = async (data) => {
   // Validaciones
@@ -15,7 +21,7 @@ export const createTurno = async (data) => {
   }
 
   // Verificar que el paciente existe
-  const paciente = await prisma.paciente.findUnique({
+  const paciente = await getPrisma().paciente.findUnique({
     where: { id: data.paciente_id },
   });
 
@@ -23,7 +29,7 @@ export const createTurno = async (data) => {
     throw new NotFoundError('Paciente no encontrado');
   }
 
-  const turno = await prisma.turno.create({
+  const turno = await getPrisma().turno.create({
     data: {
       paciente_id: data.paciente_id,
       medico_id: data.medico_id || null,
@@ -46,7 +52,7 @@ export const createTurno = async (data) => {
 };
 
 export const getTurnoById = async (id) => {
-  const turno = await prisma.turno.findUnique({
+  const turno = await getPrisma().turno.findUnique({
     where: { id },
     include: {
       paciente: true,
@@ -64,7 +70,7 @@ export const getTurnoById = async (id) => {
 };
 
 export const getTurnosByPaciente = async (paciente_id) => {
-  const turnos = await prisma.turno.findMany({
+  const turnos = await getPrisma().turno.findMany({
     where: { paciente_id },
     orderBy: { fecha_hora: 'desc' },
     include: {
@@ -84,7 +90,7 @@ export const getTurnosByDate = async (fecha) => {
   const endOfDay = new Date(fecha);
   endOfDay.setHours(23, 59, 59, 999);
 
-  const turnos = await prisma.turno.findMany({
+  const turnos = await getPrisma().turno.findMany({
     where: {
       fecha_hora: {
         gte: startOfDay,
@@ -109,7 +115,7 @@ export const getNextTurno = async (fecha = null) => {
   const date = fecha ? new Date(fecha) : new Date();
   date.setHours(0, 0, 0, 0);
 
-  const turno = await prisma.turno.findFirst({
+  const turno = await getPrisma().turno.findFirst({
     where: {
       fecha_hora: { gte: date },
       estado: {
@@ -137,7 +143,7 @@ export const updateTurnoStatus = async (id, nuevoEstado) => {
     throw new ValidationError('Estado de turno inválido', 'estado');
   }
 
-  const turno = await prisma.turno.update({
+  const turno = await getPrisma().turno.update({
     where: { id },
     data: { estado: nuevoEstado },
     include: {
@@ -176,7 +182,7 @@ export const updateTurno = async (id, data) => {
     updateData.fecha_hora = new Date(data.fecha_hora);
   }
 
-  const turno = await prisma.turno.update({
+  const turno = await getPrisma().turno.update({
     where: { id },
     data: updateData,
     include: {
@@ -199,7 +205,7 @@ export const getTurnosStats = async (fecha = null) => {
   const endOfDay = new Date(date);
   endOfDay.setHours(23, 59, 59, 999);
 
-  const totalHoy = await prisma.turno.count({
+  const totalHoy = await getPrisma().turno.count({
     where: {
       fecha_hora: {
         gte: date,
@@ -208,7 +214,7 @@ export const getTurnosStats = async (fecha = null) => {
     },
   });
 
-  const atendidos = await prisma.turno.count({
+  const atendidos = await getPrisma().turno.count({
     where: {
       fecha_hora: {
         gte: date,
@@ -218,7 +224,7 @@ export const getTurnosStats = async (fecha = null) => {
     },
   });
 
-  const cancelados = await prisma.turno.count({
+  const cancelados = await getPrisma().turno.count({
     where: {
       fecha_hora: {
         gte: date,

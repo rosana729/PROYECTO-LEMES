@@ -13,7 +13,15 @@ import {
   ConflictError,
 } from '../utils/errors.js';
 
-const prisma = new PrismaClient();
+// Lazy-load Prisma para evitar errores si no ha sido generado
+let prisma = null;
+
+const getPrisma = () => {
+  if (!prisma) {
+    prisma = new PrismaClient();
+  }
+  return prisma;
+};
 
 export const loginUser = async ({ email, password, ipAddress = null, browserInfo = null }) => {
   // Validaciones
@@ -27,7 +35,7 @@ export const loginUser = async ({ email, password, ipAddress = null, browserInfo
   }
 
   // Buscar usuario
-  const usuario = await prisma.usuario.findUnique({
+  const usuario = await getPrisma().usuario.findUnique({
     where: { email: cleanEmail },
   });
 
@@ -50,7 +58,7 @@ export const loginUser = async ({ email, password, ipAddress = null, browserInfo
   const tokenSesion = generateSessionToken();
   const fechaExpiracion = calculateSessionExpiry(24); // 24 horas
 
-  const sesion = await prisma.sesion.create({
+  const sesion = await getPrisma().sesion.create({
     data: {
       usuario_id: usuario.id,
       token_sesion: tokenSesion,
@@ -82,7 +90,7 @@ export const logoutUser = async (sessionId) => {
     throw new ValidationError('Session ID requerido');
   }
 
-  const sesion = await prisma.sesion.update({
+  const sesion = await getPrisma().sesion.update({
     where: { id: sessionId },
     data: {
       activa: false,
@@ -98,7 +106,7 @@ export const validateSession = async (tokenSesion) => {
     throw new UnauthorizedError('Token de sesión no proporcionado');
   }
 
-  const sesion = await prisma.sesion.findUnique({
+  const sesion = await getPrisma().sesion.findUnique({
     where: { token_sesion: tokenSesion },
     include: { usuario: true },
   });
@@ -112,7 +120,7 @@ export const validateSession = async (tokenSesion) => {
   }
 
   if (new Date() > new Date(sesion.fecha_expiracion)) {
-    await prisma.sesion.update({
+    await getPrisma().sesion.update({
       where: { id: sesion.id },
       data: { activa: false, fecha_cierre: new Date() },
     });
