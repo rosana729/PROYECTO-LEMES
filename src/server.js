@@ -202,11 +202,26 @@ app.post('/api/test-login', (req, res) => {
 });
 
 // ========================================
-// CARGAR RUTAS API DINÁMICAMENTE (Compatible con Vercel)
+// CARGAR RUTAS API - Variable para control
 // ========================================
-(async () => {
+let routesLoaded = false;
+let routesLoading = false;
+
+// Middleware para cargar rutas al primer request (compatible con Vercel serverless)
+app.use(async (req, res, next) => {
+  if (routesLoaded) {
+    return next();
+  }
+  
+  if (routesLoading) {
+    // Si se están cargando, esperar
+    return res.status(503).json({ error: 'Rutas cargándose, intente de nuevo' });
+  }
+  
+  routesLoading = true;
+  
   try {
-    console.log('🚀 Cargando rutas API...');
+    console.log('🚀 Cargando rutas API en primer request...');
     
     const [authMod, pacientesMod, turnosMod, historiasMod, usuariosMod, documentosMod] = await Promise.all([
       import('./routes/authRoutes.js'),
@@ -226,28 +241,33 @@ app.post('/api/test-login', (req, res) => {
     app.use('/api/documentos', documentosMod.default);
 
     console.log('✓ Todas las rutas API cargadas correctamente');
-
-    // Registrar manejadores de error DESPUÉS de las rutas
-    app.use((req, res) => {
-      console.log(`404: ${req.method} ${req.originalUrl}`);
-      res.status(404).json({ error: 'Not Found', path: req.originalUrl });
-    });
-
-    app.use((err, req, res, next) => {
-      console.error('Error en middleware:', err);
-      res.status(500).json({ error: err.message || 'Internal Server Error' });
-    });
+    
+    routesLoaded = true;
+    routesLoading = false;
+    
+    // Reintentar el request actual
+    next();
 
   } catch (err) {
     console.error('❌ Error cargando rutas API:', err.message);
     console.error(err.stack);
-    
-    // Si hay error, register 404 handler de todos modos
-    app.use((req, res) => {
-      res.status(404).json({ error: 'Not Found - Rutas no disponibles', path: req.originalUrl });
-    });
+    routesLoading = false;
+    res.status(500).json({ error: 'Error al cargar rutas', message: err.message });
   }
-})();
+});
+
+// ========================================
+// MANEJO DE ERRORES 404 (DEBE IR AL FINAL)
+// ========================================
+app.use((req, res) => {
+  console.log(`404: ${req.method} ${req.originalUrl}`);
+  res.status(404).json({ error: 'Not Found', path: req.originalUrl });
+});
+
+app.use((err, req, res, next) => {
+  console.error('Error en middleware:', err);
+  res.status(500).json({ error: err.message || 'Internal Server Error' });
+});
 
 // ========================================
 // SERVIDOR - Solo escuchar en desarrollo
