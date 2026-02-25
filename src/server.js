@@ -5,20 +5,27 @@ import helmet from 'helmet';
 import cors from 'cors';
 import { fileURLToPath } from 'url';
 import path from 'path';
-import config from './config/database.js';
-import { initSupabase } from './config/supabase.js';
-import { errorHandler } from './middlewares/auth.js';
-
-// Importar rutas
-import authRoutes from './routes/authRoutes.js';
-import pacientesRoutes from './routes/pacientesRoutes.js';
-import turnosRoutes from './routes/turnosRoutes.js';
-import historiasRoutes from './routes/historiasRoutes.js';
-import usuariosRoutes from './routes/usuariosRoutes.js';
-import documentosRoutes from './routes/documentosRoutes.js';
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Importar configuración de forma síncrona
+let config = {
+  env: process.env.NODE_ENV || 'development',
+  port: parseInt(process.env.PORT, 10) || 3000,
+  isDevelopment: (process.env.NODE_ENV || 'development') === 'development',
+  isProduction: process.env.NODE_ENV === 'production',
+  app: { name: 'Lemes' },
+  database: { url: process.env.DATABASE_URL },
+  supabase: {
+    url: process.env.SUPABASE_URL,
+    anonKey: process.env.SUPABASE_ANON_KEY,
+  },
+  security: {
+    sessionSecret: process.env.SESSION_SECRET || 'default_secret_2024',
+  }
+};
 
 const app = express();
 
@@ -27,7 +34,7 @@ const app = express();
 // ========================================
 app.use(helmet());
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  origin: process.env.CORS_ORIGIN || '*',
   credentials: true,
 }));
 
@@ -42,14 +49,14 @@ app.use(cookieParser());
 // SESIONES
 // ========================================
 app.use(session({
-  secret: config.security.sessionSecret,
+  secret: config.security?.sessionSecret || 'default_secret',
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: config.isProduction, // usar HTTPS en producción
+    secure: config.isProduction,
     httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000, // 24 horas
-    sameSite: 'strict',
+    maxAge: 24 * 60 * 60 * 1000,
+    sameSite: 'lax',
   },
 }));
 
@@ -57,8 +64,14 @@ app.use(session({
 // VISTAS Y ARCHIVOS ESTÁTICOS
 // ========================================
 app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'));
-app.use(express.static(path.join(__dirname, 'public')));
+const viewsPath = path.join(__dirname, 'views');
+if (fs.existsSync(viewsPath)) {
+  app.set('views', viewsPath);
+}
+const publicPath = path.join(__dirname, 'public');
+if (fs.existsSync(publicPath)) {
+  app.use(express.static(publicPath));
+}
 
 // ========================================
 // MIDDLEWARE GLOBAL
@@ -70,25 +83,67 @@ app.use((req, res, next) => {
 });
 
 // ========================================
-// INICIALIZAR SUPABASE
+// INICIALIZAR SUPABASE (si está disponible)
 // ========================================
-try {
-  initSupabase();
-  console.log('✓ Supabase inicializado correctamente');
-} catch (error) {
-  console.error('✗ Error al inicializar Supabase:', error.message);
-  // Continuar de todos modos (el error será capturado cuando se intente usar)
-}
+// Cargar de forma lazy
+(async () => {
+  try {
+    const { initSupabase } = await import('./config/supabase.js');
+    if (initSupabase) {
+      initSupabase();
+      console.log('✓ Supabase inicializado');
+    }
+  } catch (error) {
+    console.warn('⚠️ Supabase:', error.message);
+  }
+})();
 
 // ========================================
-// RUTAS API
+// CARGAR RUTAS API (con safety checks)
 // ========================================
-app.use('/api/auth', authRoutes);
-app.use('/api/pacientes', pacientesRoutes);
-app.use('/api/turnos', turnosRoutes);
-app.use('/api/historias', historiasRoutes);
-app.use('/api/usuarios', usuariosRoutes);
-app.use('/api/documentos', documentosRoutes);
+(async () => {
+  try {
+    const { default: authRoutes } = await import('./routes/authRoutes.js');
+    if (authRoutes) app.use('/api/auth', authRoutes);
+  } catch (err) {
+    console.warn('⚠️ Auth routes:', err.message);
+  }
+
+  try {
+    const { default: pacientesRoutes } = await import('./routes/pacientesRoutes.js');
+    if (pacientesRoutes) app.use('/api/pacientes', pacientesRoutes);
+  } catch (err) {
+    console.warn('⚠️ Pacientes routes:', err.message);
+  }
+
+  try {
+    const { default: turnosRoutes } = await import('./routes/turnosRoutes.js');
+    if (turnosRoutes) app.use('/api/turnos', turnosRoutes);
+  } catch (err) {
+    console.warn('⚠️ Turnos routes:', err.message);
+  }
+
+  try {
+    const { default: historiasRoutes } = await import('./routes/historiasRoutes.js');
+    if (historiasRoutes) app.use('/api/historias', historiasRoutes);
+  } catch (err) {
+    console.warn('⚠️ Historias routes:', err.message);
+  }
+
+  try {
+    const { default: usuariosRoutes } = await import('./routes/usuariosRoutes.js');
+    if (usuariosRoutes) app.use('/api/usuarios', usuariosRoutes);
+  } catch (err) {
+    console.warn('⚠️ Usuarios routes:', err.message);
+  }
+
+  try {
+    const { default: documentosRoutes } = await import('./routes/documentosRoutes.js');
+    if (documentosRoutes) app.use('/api/documentos', documentosRoutes);
+  } catch (err) {
+    console.warn('⚠️ Documentos routes:', err.message);
+  }
+})();
 
 // ========================================
 // RUTAS DE VISTAS (Renderizado)
@@ -164,42 +219,39 @@ app.get('/agenda', (req, res) => {
   });
 });
 
+// Health check para Vercel
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 // ========================================
 // MANEJO DE ERRORES
 // ========================================
 app.use((req, res) => {
-  res.status(404).render('error/404', {
-    title: 'Página No Encontrada',
-    url: req.originalUrl,
+  res.status(404).json({ error: 'Not Found', path: req.originalUrl });
+});
+
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  res.status(500).json({ error: err.message || 'Internal Server Error' });
+});
+
+// ========================================
+// SERVIDOR - Solo escuchar en desarrollo
+// ========================================
+if (!process.env.VERCEL && config.isDevelopment) {
+  const PORT = config.port;
+  app.listen(PORT, () => {
+    console.log(`\n✓ Servidor ejecutándose en http://localhost:${PORT}\n`);
   });
-});
+}
 
-app.use(errorHandler);
-
-// ========================================
-// SERVIDOR
-// ========================================
-const PORT = config.port;
-
-const server = app.listen(PORT, () => {
-  console.log('');
-  console.log('╔════════════════════════════════════════════╗');
-  console.log(`║ ${config.app.name.padEnd(42)} ║`);
-  console.log('╠════════════════════════════════════════════╣');
-  console.log(`║ Servidor ejecutándose en: Port ${PORT}`.padEnd(43) + '║');
-  console.log(`║ Entorno: ${config.env.toUpperCase().padEnd(35)} ║`);
-  console.log('╚════════════════════════════════════════════╝');
-  console.log('');
-});
-
-// Manejo de errores no capturados
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Promesa rechazada no manejada:', reason);
 });
 
 process.on('uncaughtException', (error) => {
-  console.error('Excepción no capturada:', error);
-  process.exit(1);
+  console.error('Excepción no capturada:', error.message);
 });
 
 export default app;
