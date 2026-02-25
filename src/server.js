@@ -6,9 +6,12 @@ import cors from 'cors';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import fs from 'fs';
+import jwt from 'jsonwebtoken';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
 // Importar configuración de forma síncrona
 let config = {
@@ -98,73 +101,88 @@ import('./config/supabase.js').then(
 // RUTAS DE VISTAS (Renderizado) - REGISTRAR PRIMERO
 // ========================================
 
+// Middleware para verificar JWT en rutas protegidas
+const verifyJWT = (req, res, next) => {
+  const token = req.cookies?.authToken;
+  
+  if (!token) {
+    return res.redirect('/login');
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (error) {
+    console.warn('⚠️ JWT verification failed:', error.message);
+    res.clearCookie('authToken');
+    res.redirect('/login');
+  }
+};
+
 // Página de login
 app.get('/login', (req, res) => {
-  if (req.session.user) {
-    return res.redirect('/');
+  const token = req.cookies?.authToken;
+  
+  if (token) {
+    try {
+      jwt.verify(token, JWT_SECRET);
+      return res.redirect('/');
+    } catch (error) {
+      res.clearCookie('authToken');
+    }
   }
+  
   res.render('auth/login', { title: 'Iniciar Sesión - Lemes' });
 });
 
 // Dashboard (protegido)
-app.get('/', (req, res) => {
-  if (!req.session.user) {
-    return res.redirect('/login');
-  }
-
+app.get('/', verifyJWT, (req, res) => {
   // Renderizar dashboard según el rol
-  const rol = req.session.user.rol;
-  const title = `Dashboard - ${config.app.name}`;
+  const rol = req.user.rol;
+  const title = `Dashboard - Lemes`;
 
   if (rol === 'ROLE_ADMIN') {
     return res.render('dashboard/admin', {
       title,
-      usuario: req.session.user,
+      usuario: req.user,
     });
   }
 
   if (rol === 'ROLE_DOCTOR') {
     return res.render('dashboard/doctor', {
       title,
-      usuario: req.session.user,
+      usuario: req.user,
     });
   }
 
   if (rol === 'ROLE_SECRETARIA') {
     return res.render('dashboard/secretaria', {
       title,
-      usuario: req.session.user,
+      usuario: req.user,
     });
   }
 
-  res.render('index/home', { title, usuario: req.session.user });
+  res.render('index/home', { title, usuario: req.user });
 });
 
 // Panel de Siguiente Paciente (solo doctor)
-app.get('/siguiente-paciente', (req, res) => {
-  if (!req.session.user) {
-    return res.redirect('/login');
-  }
-
-  if (req.session.user.rol !== 'ROLE_DOCTOR') {
+app.get('/siguiente-paciente', verifyJWT, (req, res) => {
+  if (req.user.rol !== 'ROLE_DOCTOR') {
     return res.status(403).render('error/403', { title: 'Acceso Denegado' });
   }
 
   res.render('doctor/siguiente-paciente', {
     title: 'Siguiente Paciente - Lemes',
-    usuario: req.session.user,
+    usuario: req.user,
   });
 });
 
 // Agenda/Calendario
-app.get('/agenda', (req, res) => {
-  if (!req.session.user) {
-    return res.redirect('/login');
-  }
-
+app.get('/agenda', verifyJWT, (req, res) => {
   res.render('calendar/agenda', {
     title: 'Agenda - Lemes',
-    usuario: req.session.user,
+    usuario: req.user,
   });
 });
 

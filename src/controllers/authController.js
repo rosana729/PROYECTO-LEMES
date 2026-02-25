@@ -1,5 +1,8 @@
 import { loginUser, logoutUser } from '../services/authService.js';
 import { handleError } from '../utils/errors.js';
+import jwt from 'jsonwebtoken';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
 export const login = async (req, res) => {
   try {
@@ -16,7 +19,7 @@ export const login = async (req, res) => {
       browserInfo,
     });
 
-    // Guardar en sesión de Express
+    // Guardar en sesión de Express (para desarrollo)
     req.session.user = {
       id: result.usuario.id,
       email: result.usuario.email,
@@ -25,6 +28,27 @@ export const login = async (req, res) => {
       rol: result.usuario.rol,
       token_sesion: result.sesion.token,
     };
+
+    // Crear JWT para Vercel (serverless)
+    const token = jwt.sign(
+      {
+        id: result.usuario.id,
+        email: result.usuario.email,
+        nombre: result.usuario.nombre,
+        apellido: result.usuario.apellido,
+        rol: result.usuario.rol,
+      },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    // Guardar token en cookie HttpOnly
+    res.cookie('authToken', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 24 * 60 * 60 * 1000, // 24 horas
+    });
 
     res.json({
       success: true,

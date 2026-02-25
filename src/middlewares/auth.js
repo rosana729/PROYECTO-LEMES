@@ -1,11 +1,27 @@
 import { PrismaClient } from '@prisma/client';
 import { UnauthorizedError, ForbiddenError } from '../utils/errors.js';
+import jwt from 'jsonwebtoken';
 
 const prisma = new PrismaClient();
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
 export const authMiddleware = async (req, res, next) => {
   try {
-    // Obtener token de la sesión
+    // Primero intentar validar JWT desde cookie (para Vercel/serverless)
+    const authToken = req.cookies?.authToken;
+    
+    if (authToken) {
+      try {
+        const decoded = jwt.verify(authToken, JWT_SECRET);
+        req.user = decoded;
+        return next();
+      } catch (jwtError) {
+        console.warn('⚠️ JWT validation failed:', jwtError.message);
+        // Continuar con validación de sesión como fallback
+      }
+    }
+
+    // Fallback: validar sesión de Express y token en BD
     const sessionToken = req.session?.user?.token_sesion || req.cookies?.sessionToken;
 
     if (!sessionToken) {
