@@ -192,26 +192,30 @@ app.get('/api/health', (req, res) => {
 });
 
 // ========================================
-// CARGAR RUTAS API ANTES DE EXPORTAR (TOP-LEVEL AWAIT)
+// CARGAR RUTAS API (Lazy Load - compatible con Vercel)
 // ========================================
-const [auth, pacientes, turnos, historias, usuarios, documentos] = await Promise.all([
-  import('./routes/authRoutes.js').catch(err => { console.warn('⚠️ Auth routes:', err.message); return null; }),
-  import('./routes/pacientesRoutes.js').catch(err => { console.warn('⚠️ Pacientes routes:', err.message); return null; }),
-  import('./routes/turnosRoutes.js').catch(err => { console.warn('⚠️ Turnos routes:', err.message); return null; }),
-  import('./routes/historiasRoutes.js').catch(err => { console.warn('⚠️ Historias routes:', err.message); return null; }),
-  import('./routes/usuariosRoutes.js').catch(err => { console.warn('⚠️ Usuarios routes:', err.message); return null; }),
-  import('./routes/documentosRoutes.js').catch(err => { console.warn('⚠️ Documentos routes:', err.message); return null; }),
-]);
+// Las rutas se importan cuando se necesitan, no bloqueamos la exportación
+(async () => {
+  try {
+    const authRoutes = await import('./routes/authRoutes.js').catch(err => { console.warn('⚠️ Auth routes:', err.message); return null; });
+    const pacientesRoutes = await import('./routes/pacientesRoutes.js').catch(err => { console.warn('⚠️ Pacientes routes:', err.message); return null; });
+    const turnosRoutes = await import('./routes/turnosRoutes.js').catch(err => { console.warn('⚠️ Turnos routes:', err.message); return null; });
+    const historiasRoutes = await import('./routes/historiasRoutes.js').catch(err => { console.warn('⚠️ Historias routes:', err.message); return null; });
+    const usuariosRoutes = await import('./routes/usuariosRoutes.js').catch(err => { console.warn('⚠️ Usuarios routes:', err.message); return null; });
+    const documentosRoutes = await import('./routes/documentosRoutes.js').catch(err => { console.warn('⚠️ Documentos routes:', err.message); return null; });
 
-// Registrar todas las rutas ANTES de que el módulo se exporte
-if (auth?.default) app.use('/api/auth', auth.default);
-if (pacientes?.default) app.use('/api/pacientes', pacientes.default);
-if (turnos?.default) app.use('/api/turnos', turnos.default);
-if (historias?.default) app.use('/api/historias', historias.default);
-if (usuarios?.default) app.use('/api/usuarios', usuarios.default);
-if (documentos?.default) app.use('/api/documentos', documentos.default);
+    if (authRoutes?.default) app.use('/api/auth', authRoutes.default);
+    if (pacientesRoutes?.default) app.use('/api/pacientes', pacientesRoutes.default);
+    if (turnosRoutes?.default) app.use('/api/turnos', turnosRoutes.default);
+    if (historiasRoutes?.default) app.use('/api/historias', historiasRoutes.default);
+    if (usuariosRoutes?.default) app.use('/api/usuarios', usuariosRoutes.default);
+    if (documentosRoutes?.default) app.use('/api/documentos', documentosRoutes.default);
 
-console.log('✓ Todas las rutas API registradas correctamente');
+    console.log('✓ Rutas API cargadas correctamente');
+  } catch (err) {
+    console.error('Error al cargar rutas API:', err);
+  }
+})();
 
 // ========================================
 // MANEJO DE ERRORES
