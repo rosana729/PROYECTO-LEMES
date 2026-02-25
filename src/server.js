@@ -206,7 +206,7 @@ app.post('/api/test-login', (req, res) => {
 // ========================================
 (async () => {
   try {
-    console.log('Cargando rutas API...');
+    console.log('🚀 Cargando rutas API...');
     
     const [authMod, pacientesMod, turnosMod, historiasMod, usuariosMod, documentosMod] = await Promise.all([
       import('./routes/authRoutes.js'),
@@ -217,6 +217,7 @@ app.post('/api/test-login', (req, res) => {
       import('./routes/documentosRoutes.js'),
     ]);
 
+    // Registrar todas las rutas API
     app.use('/api/auth', authMod.default);
     app.use('/api/pacientes', pacientesMod.default);
     app.use('/api/turnos', turnosMod.default);
@@ -224,24 +225,29 @@ app.post('/api/test-login', (req, res) => {
     app.use('/api/usuarios', usuariosMod.default);
     app.use('/api/documentos', documentosMod.default);
 
-    console.log('✓ Rutas API cargadas correctamente');
+    console.log('✓ Todas las rutas API cargadas correctamente');
+
+    // Registrar manejadores de error DESPUÉS de las rutas
+    app.use((req, res) => {
+      console.log(`404: ${req.method} ${req.originalUrl}`);
+      res.status(404).json({ error: 'Not Found', path: req.originalUrl });
+    });
+
+    app.use((err, req, res, next) => {
+      console.error('Error en middleware:', err);
+      res.status(500).json({ error: err.message || 'Internal Server Error' });
+    });
+
   } catch (err) {
     console.error('❌ Error cargando rutas API:', err.message);
     console.error(err.stack);
+    
+    // Si hay error, register 404 handler de todos modos
+    app.use((req, res) => {
+      res.status(404).json({ error: 'Not Found - Rutas no disponibles', path: req.originalUrl });
+    });
   }
 })();
-
-// ========================================
-// MANEJO DE ERRORES
-// ========================================
-app.use((req, res) => {
-  res.status(404).json({ error: 'Not Found', path: req.originalUrl });
-});
-
-app.use((err, req, res, next) => {
-  console.error('Error:', err);
-  res.status(500).json({ error: err.message || 'Internal Server Error' });
-});
 
 // ========================================
 // SERVIDOR - Solo escuchar en desarrollo
