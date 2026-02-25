@@ -85,68 +85,17 @@ app.use((req, res, next) => {
 // ========================================
 // INICIALIZAR SUPABASE (si está disponible)
 // ========================================
-// Cargar de forma lazy
-(async () => {
-  try {
-    const { initSupabase } = await import('./config/supabase.js');
+import('./config/supabase.js').then(
+  ({ initSupabase }) => {
     if (initSupabase) {
       initSupabase();
       console.log('✓ Supabase inicializado');
     }
-  } catch (error) {
-    console.warn('⚠️ Supabase:', error.message);
   }
-})();
+).catch(err => console.warn('⚠️ Supabase:', err.message));
 
 // ========================================
-// CARGAR RUTAS API (con safety checks)
-// ========================================
-(async () => {
-  try {
-    const { default: authRoutes } = await import('./routes/authRoutes.js');
-    if (authRoutes) app.use('/api/auth', authRoutes);
-  } catch (err) {
-    console.warn('⚠️ Auth routes:', err.message);
-  }
-
-  try {
-    const { default: pacientesRoutes } = await import('./routes/pacientesRoutes.js');
-    if (pacientesRoutes) app.use('/api/pacientes', pacientesRoutes);
-  } catch (err) {
-    console.warn('⚠️ Pacientes routes:', err.message);
-  }
-
-  try {
-    const { default: turnosRoutes } = await import('./routes/turnosRoutes.js');
-    if (turnosRoutes) app.use('/api/turnos', turnosRoutes);
-  } catch (err) {
-    console.warn('⚠️ Turnos routes:', err.message);
-  }
-
-  try {
-    const { default: historiasRoutes } = await import('./routes/historiasRoutes.js');
-    if (historiasRoutes) app.use('/api/historias', historiasRoutes);
-  } catch (err) {
-    console.warn('⚠️ Historias routes:', err.message);
-  }
-
-  try {
-    const { default: usuariosRoutes } = await import('./routes/usuariosRoutes.js');
-    if (usuariosRoutes) app.use('/api/usuarios', usuariosRoutes);
-  } catch (err) {
-    console.warn('⚠️ Usuarios routes:', err.message);
-  }
-
-  try {
-    const { default: documentosRoutes } = await import('./routes/documentosRoutes.js');
-    if (documentosRoutes) app.use('/api/documentos', documentosRoutes);
-  } catch (err) {
-    console.warn('⚠️ Documentos routes:', err.message);
-  }
-})();
-
-// ========================================
-// RUTAS DE VISTAS (Renderizado)
+// RUTAS DE VISTAS (Renderizado) - REGISTRAR PRIMERO
 // ========================================
 
 // Página de login
@@ -223,6 +172,25 @@ app.get('/agenda', (req, res) => {
 app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+// ========================================
+// CARGAR RUTAS API
+// ========================================
+Promise.all([
+  import('./routes/authRoutes.js').catch(err => { console.warn('⚠️ Auth routes:', err.message); return null; }),
+  import('./routes/pacientesRoutes.js').catch(err => { console.warn('⚠️ Pacientes routes:', err.message); return null; }),
+  import('./routes/turnosRoutes.js').catch(err => { console.warn('⚠️ Turnos routes:', err.message); return null; }),
+  import('./routes/historiasRoutes.js').catch(err => { console.warn('⚠️ Historias routes:', err.message); return null; }),
+  import('./routes/usuariosRoutes.js').catch(err => { console.warn('⚠️ Usuarios routes:', err.message); return null; }),
+  import('./routes/documentosRoutes.js').catch(err => { console.warn('⚠️ Documentos routes:', err.message); return null; }),
+]).then(([auth, pacientes, turnos, historias, usuarios, documentos]) => {
+  if (auth?.default) app.use('/api/auth', auth.default);
+  if (pacientes?.default) app.use('/api/pacientes', pacientes.default);
+  if (turnos?.default) app.use('/api/turnos', turnos.default);
+  if (historias?.default) app.use('/api/historias', historias.default);
+  if (usuarios?.default) app.use('/api/usuarios', usuarios.default);
+  if (documentos?.default) app.use('/api/documentos', documentos.default);
+}).catch(err => console.error('Error loading routes:', err.message));
 
 // ========================================
 // MANEJO DE ERRORES
