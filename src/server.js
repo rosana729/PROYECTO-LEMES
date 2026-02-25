@@ -192,23 +192,26 @@ app.get('/api/health', (req, res) => {
 });
 
 // ========================================
-// CARGAR RUTAS API
+// CARGAR RUTAS API ANTES DE EXPORTAR (TOP-LEVEL AWAIT)
 // ========================================
-Promise.all([
+const [auth, pacientes, turnos, historias, usuarios, documentos] = await Promise.all([
   import('./routes/authRoutes.js').catch(err => { console.warn('⚠️ Auth routes:', err.message); return null; }),
   import('./routes/pacientesRoutes.js').catch(err => { console.warn('⚠️ Pacientes routes:', err.message); return null; }),
   import('./routes/turnosRoutes.js').catch(err => { console.warn('⚠️ Turnos routes:', err.message); return null; }),
   import('./routes/historiasRoutes.js').catch(err => { console.warn('⚠️ Historias routes:', err.message); return null; }),
   import('./routes/usuariosRoutes.js').catch(err => { console.warn('⚠️ Usuarios routes:', err.message); return null; }),
   import('./routes/documentosRoutes.js').catch(err => { console.warn('⚠️ Documentos routes:', err.message); return null; }),
-]).then(([auth, pacientes, turnos, historias, usuarios, documentos]) => {
-  if (auth?.default) app.use('/api/auth', auth.default);
-  if (pacientes?.default) app.use('/api/pacientes', pacientes.default);
-  if (turnos?.default) app.use('/api/turnos', turnos.default);
-  if (historias?.default) app.use('/api/historias', historias.default);
-  if (usuarios?.default) app.use('/api/usuarios', usuarios.default);
-  if (documentos?.default) app.use('/api/documentos', documentos.default);
-}).catch(err => console.error('Error loading routes:', err.message));
+]);
+
+// Registrar todas las rutas ANTES de que el módulo se exporte
+if (auth?.default) app.use('/api/auth', auth.default);
+if (pacientes?.default) app.use('/api/pacientes', pacientes.default);
+if (turnos?.default) app.use('/api/turnos', turnos.default);
+if (historias?.default) app.use('/api/historias', historias.default);
+if (usuarios?.default) app.use('/api/usuarios', usuarios.default);
+if (documentos?.default) app.use('/api/documentos', documentos.default);
+
+console.log('✓ Todas las rutas API registradas correctamente');
 
 // ========================================
 // MANEJO DE ERRORES
