@@ -8,14 +8,6 @@ import path from 'path';
 import fs from 'fs';
 import jwt from 'jsonwebtoken';
 
-// Importar rutas estáticamente ANTES de crear la app
-import authRoutes from './routes/authRoutes.js';
-import pacientesRoutes from './routes/pacientesRoutes.js';
-import turnosRoutes from './routes/turnosRoutes.js';
-import historiasRoutes from './routes/historiasRoutes.js';
-import usuariosRoutes from './routes/usuariosRoutes.js';
-import documentosRoutes from './routes/documentosRoutes.js';
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -199,20 +191,45 @@ app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// RUTA DE PRUEBA - para verificar que /api/ funciona
+app.post('/api/test-login', (req, res) => {
+  console.log('✓ POST /api/test-login llamado');
+  res.status(200).json({ 
+    success: true, 
+    message: 'Ruta de prueba funcionando',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // ========================================
-// REGISTRAR RUTAS API (DIRECTAMENTE - Compatible Vercel)
+// CARGAR RUTAS API DINÁMICAMENTE (Compatible con Vercel)
 // ========================================
-try {
-  app.use('/api/auth', authRoutes);
-  app.use('/api/pacientes', pacientesRoutes);
-  app.use('/api/turnos', turnosRoutes);
-  app.use('/api/historias', historiasRoutes);
-  app.use('/api/usuarios', usuariosRoutes);
-  app.use('/api/documentos', documentosRoutes);
-  console.log('✓ Todas las rutas API registradas');
-} catch (err) {
-  console.error('Error registrando rutas API:', err.message);
-}
+(async () => {
+  try {
+    console.log('Cargando rutas API...');
+    
+    const [authMod, pacientesMod, turnosMod, historiasMod, usuariosMod, documentosMod] = await Promise.all([
+      import('./routes/authRoutes.js'),
+      import('./routes/pacientesRoutes.js'),
+      import('./routes/turnosRoutes.js'),
+      import('./routes/historiasRoutes.js'),
+      import('./routes/usuariosRoutes.js'),
+      import('./routes/documentosRoutes.js'),
+    ]);
+
+    app.use('/api/auth', authMod.default);
+    app.use('/api/pacientes', pacientesMod.default);
+    app.use('/api/turnos', turnosMod.default);
+    app.use('/api/historias', historiasMod.default);
+    app.use('/api/usuarios', usuariosMod.default);
+    app.use('/api/documentos', documentosMod.default);
+
+    console.log('✓ Rutas API cargadas correctamente');
+  } catch (err) {
+    console.error('❌ Error cargando rutas API:', err.message);
+    console.error(err.stack);
+  }
+})();
 
 // ========================================
 // MANEJO DE ERRORES
