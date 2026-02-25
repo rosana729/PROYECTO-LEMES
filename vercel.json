@@ -1,26 +1,19 @@
 {
   "version": 2,
-  "buildCommand": "npm install && prisma generate",
   "builds": [
     {
       "src": "src/server.js",
       "use": "@vercel/node",
       "config": {
-        "includeFiles": ["prisma/**", "src/**", "public/**"]
+        "maxLambdaSize": "50mb",
+        "runtime": "nodejs22.x"
       }
     }
   ],
   "routes": [
     {
-      "src": "/public/(.*)",
-      "dest": "/public/$1"
-    },
-    {
       "src": "/(.*)",
       "dest": "src/server.js"
     }
-  ],
-  "env": {
-    "NODE_ENV": "production"
-  }
+  ]
 }
